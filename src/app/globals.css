@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* HTML Element Showcase Specific Styles */
+/* These styles ensure that the HTML elements display in their native form */
+
+.component-example input,
+.component-example button,
+.component-example select,
+.component-example textarea,
+.component-example progress,
+.component-example meter,
+.component-example fieldset,
+.component-example details,
+.component-example dialog,
+.component-example audio,
+.component-example video,
+.component-example canvas,
+.component-example iframe,
+.component-example embed,
+.component-example object,
+.component-example table {
+  /* Reset any tailwind styles that might affect native elements */
+  all: revert;
+}
+
+/* For tables to have visible borders */
+.component-example table {
+  border-collapse: collapse;
+}
+
+.component-example table,
+.component-example th,
+.component-example td {
+  border: 1px solid currentColor;
+}
+
+/* Preserve whitespace in code samples */
+.code-sample {
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .code-sample {
+    padding: 16px;
+  }
+}
