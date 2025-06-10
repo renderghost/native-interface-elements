@@ -1,76 +1,88 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ComponentCategory, ComponentMetadata } from "../../types";
 import { components } from "../../constants/components";
 
 /**
- * Sidebar component that displays navigation menu based on component data.
- * Features collapsible sections and active state highlighting.
+ * Sidebar component that displays navigation menu with grouped links sorted A-Z.
  */
 const Sidebar = () => {
   const pathname = usePathname();
-  // Get components using the constants import
-  const componentMetadata = components;
+  const navRef = useRef<HTMLElement>(null);
+  const scrollPositionRef = useRef<number>(0);
 
-  // Group components by category
-  const componentsByCategory = componentMetadata.reduce<
-    Record<string, ComponentMetadata[]>
-  >((acc, component) => {
-    const category = component.category;
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(component);
-    return acc;
-  }, {});
-
-  // Track which categories are expanded (default all expanded on desktop, only active on mobile)
-  const [expandedCategories, setExpandedCategories] = useState<
-    Record<string, boolean>
-  >({});
-
-  // Initialize expanded state based on the active route
-  useEffect(() => {
-    const initialExpanded: Record<string, boolean> = {};
-
-    // Expand all categories on initial load for desktop
-    Object.keys(ComponentCategory).forEach((category) => {
-      initialExpanded[category] = true;
-    });
-
-    setExpandedCategories(initialExpanded);
-  }, []);
-
-  // Toggle a category's expanded state
-  const toggleCategory = (category: string) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
-  };
-
-  // Group components by subcategory within each category
-  const groupBySubcategory = (components: ComponentMetadata[]) => {
-    const grouped: Record<string, ComponentMetadata[]> = {};
-
-    components.forEach((component) => {
-      const subcategory = component.subcategory || "Other";
-      if (!grouped[subcategory]) {
-        grouped[subcategory] = [];
+  // Memoize the grouped and sorted component data to prevent re-computation
+  const { componentsByCategory, sortedCategories, groupBySubcategory } = useMemo(() => {
+    const componentMetadata = components;
+    
+    // Group components by category
+    const componentsByCategory = componentMetadata.reduce<
+      Record<string, ComponentMetadata[]>
+    >((acc, component) => {
+      const category = component.category;
+      if (!acc[category]) {
+        acc[category] = [];
       }
-      grouped[subcategory].push(component);
-    });
+      acc[category].push(component);
+      return acc;
+    }, {});
 
-    return grouped;
-  };
+    // Sort categories A-Z
+    const sortedCategories = Object.keys(componentsByCategory).sort();
+
+    // Group and sort components by subcategory within each category
+    const groupBySubcategory = (components: ComponentMetadata[]) => {
+      const grouped: Record<string, ComponentMetadata[]> = {};
+
+      components.forEach((component) => {
+        const subcategory = component.subcategory || "Other";
+        if (!grouped[subcategory]) {
+          grouped[subcategory] = [];
+        }
+        grouped[subcategory].push(component);
+      });
+
+      // Sort components within each subcategory A-Z
+      Object.keys(grouped).forEach((subcategory) => {
+        grouped[subcategory].sort((a, b) => a.title.localeCompare(b.title));
+      });
+
+      return grouped;
+    };
+
+    return { componentsByCategory, sortedCategories, groupBySubcategory };
+  }, []); // Empty dependency array since components data is static
 
   // Check if a component is currently active
   const isActive = (slug: string) => {
     return pathname === `/components/${slug}`;
   };
+
+  // Preserve scroll position when navigating
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    // Save scroll position on scroll
+    const handleScroll = () => {
+      scrollPositionRef.current = nav.scrollTop;
+    };
+
+    nav.addEventListener('scroll', handleScroll);
+    
+    // Restore scroll position after navigation
+    const timeoutId = setTimeout(() => {
+      nav.scrollTop = scrollPositionRef.current;
+    }, 0);
+
+    return () => {
+      nav.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [pathname]);
 
   return (
     <div className="flex h-full flex-col">
@@ -86,75 +98,57 @@ const Sidebar = () => {
         </p>
       </header>
 
-      <nav className="flex-1 overflow-y-auto">
+      <nav ref={navRef} className="flex-1 overflow-y-auto">
         <ul className="space-y-6">
-          {Object.entries(componentsByCategory).map(
-            ([categoryKey, components]) => {
-              const category = categoryKey as unknown as ComponentCategory;
-              const bySubcategory = groupBySubcategory(components || []);
+          {sortedCategories.map((categoryKey) => {
+            const components = componentsByCategory[categoryKey];
+            const bySubcategory = groupBySubcategory(components || []);
+            const sortedSubcategories = Object.keys(bySubcategory).sort();
 
-              return (
-                <li key={categoryKey} className="mb-2">
-                  {/* Category Header (Clickable) */}
-                  <button
-                    onClick={() => toggleCategory(categoryKey)}
-                    className="text-bones-dimgray border-bones-gainsboro mb-2 flex w-full items-center justify-between border-b pb-2 text-left font-semibold"
-                  >
-                    <span>{category}</span>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className={`h-4 w-4 transition-transform ${expandedCategories[categoryKey] ? "rotate-180" : ""}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+            return (
+              <li key={categoryKey} className="mb-6">
+                {/* Category Header */}
+                <h2 className="text-bones-dimgray border-bones-gainsboro mb-3 border-b pb-2 text-sm font-semibold uppercase tracking-wide">
+                  {categoryKey}
+                </h2>
 
-                  {/* Components List (Collapsible) */}
-                  {expandedCategories[categoryKey] && (
-                    <div className="ml-2">
-                      {Object.entries(bySubcategory).map(
-                        ([subcategory, subcategoryComponents]) => (
-                          <div key={subcategory} className="mb-4">
-                            {/* Only show subcategory if it's not 'Other' */}
-                            {subcategory !== "Other" && (
-                              <h3 className="text-bones-gray mb-2 text-sm font-medium">
-                                {subcategory}
-                              </h3>
-                            )}
+                {/* Components List */}
+                <div className="space-y-4">
+                  {sortedSubcategories.map((subcategory) => {
+                    const subcategoryComponents = bySubcategory[subcategory];
+                    return (
+                      <div key={subcategory}>
+                        {/* Subcategory Header (only if not 'Other') */}
+                        {subcategory !== "Other" && (
+                          <h3 className="text-bones-gray mb-2 text-xs font-medium uppercase tracking-wide">
+                            {subcategory}
+                          </h3>
+                        )}
 
-                            <ul className="ml-2 space-y-1">
-                              {subcategoryComponents.map((component) => (
-                                <li key={component.slug}>
-                                  <Link
-                                    href={`/components/${component.slug}`}
-                                    className={`block rounded px-2 py-1 text-sm transition-colors ${
-                                      isActive(component.slug)
-                                        ? "bg-bones-lightsteelblue text-bones-midnightblue font-medium"
-                                        : "text-bones-slategray hover:text-bones-midnightblue hover:bg-bones-aliceblue"
-                                    }`}
-                                  >
-                                    {component.title}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            },
-          )}
+                        {/* Component Links */}
+                        <ul className="space-y-1">
+                          {subcategoryComponents.map((component) => (
+                            <li key={component.slug}>
+                              <Link
+                                href={`/components/${component.slug}`}
+                                className={`block rounded px-2 py-1 text-sm transition-colors ${
+                                  isActive(component.slug)
+                                    ? "bg-bones-lightsteelblue text-bones-midnightblue font-medium"
+                                    : "text-bones-slategray hover:text-bones-midnightblue hover:bg-bones-aliceblue"
+                                }`}
+                              >
+                                {component.title}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
