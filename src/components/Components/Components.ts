@@ -7,7 +7,7 @@ import {
   ComponentsByCategory,
   PaginatedComponentResults,
 } from "../../types";
-import { renderComponent } from "../Component/Component";
+import { renderComponent } from "../Component";
 
 // Types are now imported from the shared types file
 
